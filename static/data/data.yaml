@@ -12,19 +12,25 @@ basic-info:
 
 sections:
   - label: about me
-    description: I'm 18 years old, born and raised in the Netherlands. I love coding, reverse engineering, playing story-driven Nintendo games like Zelda, Pokémon, and Mario, and my goal is to become someone others can rely on while creating something useful for everyone.
-  - games:
-      - name: "The legend of zelda: breath of the wild"
+    description: "I'm 18 years old, born and raised in the Netherlands. I love coding, reverse engineering, and playing story-driven Nintendo games like Zelda, Pokémon, and Mario. My goal is to become someone others can rely on while creating something useful for everyone."
+
+  - label: games
+    games:
+      - name: "The Legend of Zelda: Breath of the Wild"
         cover: zelda.png
         tags: [Adventure, Action]
-      - name: "The legend of zelda: ocarina of time"
+
+      - name: "The Legend of Zelda: Ocarina of Time"
         cover: oot.png
         tags: [Adventure, Action]
-      - name: Pokemon sheild
+
+      - name: "Pokémon Shield"
         cover: pokemon.png
         tags: [Adventure, RPG]
+
   - label: inspiration
-    description: I take inspiration from people who stand out and prove others wrong, such as Dennis Ritchie, who inspired my passion for coding, while my goal in life is to follow the example of Prophet Muhammad PBUH, live by the teachings of Allah, and become a better person.
+    description: "I take inspiration from people who stand out and prove others wrong, such as Dennis Ritchie, who inspired my passion for coding. My goal in life is to follow the example of Prophet Muhammad PBUH, live by the teachings of Allah, and become a better person."
+
 commissions:
   enabled: true
 
