@@ -13,7 +13,7 @@ basic-info:
 sections:
   - label: about me
     description: I'm 18 years old, born and raised in the Netherlands. I love coding, reverse engineering, playing story-driven Nintendo games like Zelda, Pokémon, and Mario, and my goal is to become someone others can rely on while creating something useful for everyone.
-    games:
+  - games:
       - name: "The legend of zelda: breath of the wild"
         cover: zelda.png
         tags: [Adventure, Action]
