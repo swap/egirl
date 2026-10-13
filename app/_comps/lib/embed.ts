@@ -3,6 +3,8 @@ import { join } from "path";
 import { parse } from "yaml";
 
 const THUMB = "/images/web/test.png";
+// matches --bg in globals.css
+const ACCENT = 0x171717;
 
 type Info = {
   description?: string;
@@ -84,7 +86,9 @@ export function embed(site: string) {
     ...(buttons.length ? [{ type: 1, components: buttons }] : []),
   ];
 
-  const json = JSON.stringify({ component: { type: 17, components: body } });
+  const json = JSON.stringify({
+    component: { type: 17, accent_color: ACCENT, components: body },
+  });
   const desc = org ? `part of ${org}` : title;
 
   // og tags are the fallback preview when the component embed is rejected
@@ -95,6 +99,7 @@ export function embed(site: string) {
     `<meta property="og:description" content="${esc(desc)}" />`,
     `<meta property="og:image" content="${esc(site + THUMB)}" />`,
     `<meta name="twitter:card" content="summary" />`,
+    `<meta name="theme-color" content="#${ACCENT.toString(16).padStart(6, "0")}" />`,
     `<script id="discord:component-embed" type="application/json">${json.replace(/</g, "\\u003c")}</script>`,
   ].join("\n    ");
 }
