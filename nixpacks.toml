@@ -5,16 +5,21 @@ HOST = "0.0.0.0"
 PORT = "2000"
 
 [phases.setup]
-nixPkgs = ["bun"]
+nixPkgs = ["curl", "unzip"]
+cmds = [
+  "curl -fsSL -o /tmp/bun.zip https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-linux-x64.zip",
+  "rm -rf /tmp/bun-extract",
+  "unzip -q /tmp/bun.zip -d /tmp/bun-extract",
+  "mkdir -p /app/bin",
+  "install -m 755 /tmp/bun-extract/bun-linux-x64/bun /app/bin/bun",
+  "/app/bin/bun --version",
+]
 
 [phases.install]
-cmds = ["bun install --frozen-lockfile"]
+cmds = ["export PATH=/app/bin:$PATH; bun install --frozen-lockfile"]
 
 [phases.build]
-cmds = ["bun run build"]
-
-[caches]
-paths = ["node_modules", ".bun/install/cache"]
+cmds = ["export PATH=/app/bin:$PATH; bun run build"]
 
 [start]
-cmd = "bun start"
+cmd = "export PATH=/app/bin:$PATH; exec /app/bin/bun start"
