@@ -1,4 +1,4 @@
-providers = ["bun"]
+providers = ["node"]
 
 [variables]
 HOST = "0.0.0.0"
