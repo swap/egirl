@@ -1,0 +1,98 @@
+projects:
+  - name: dolls
+    description: The prettiest platform for anyone to put their links, info, or anything about themselves on the prettiest pages.
+    support: https://dol.ls/donate
+    url: https://dol.ls
+    github: dollsbio
+    date: 2026
+    version: 0.3.0
+
+  - name: swarm
+    description: A free comic reading platform for manga, manhwa, and manhua, aggregating 600K+ unique comics and 19M+ chapters across 60+ languages from 400+ websites and sources, with support for both SFW and NSFW content and fast updates.
+    url: https://swarm.ws
+    github: swarmws
+    date: 2025
+    version: 1.4.8
+
+  - name: saint
+    description: A Discord bot serving over 500 Discord servers and 700,000 users with over 600 unique commands spanning moderation, utility, security, fun, games, miscellaneous features, and much more, including unique commands you won't find in other bots.
+    github: saintcord
+    url: https://saint.bot
+    date: 2025
+    version: 1.1.0
+
+small:
+  - name: dreamswap
+    description: A private crypto exchange and purchase platform.
+    url: https://dreamswap.net/
+    github: swap/dreamswap
+    date: 2026
+    version: 2.0.0
+
+  - name: spdrm
+    description: A Spotify track downloader and MP3 converter.
+    url: https://pypi.org/project/spdrm/
+    github: swap/spdrm
+    date: 2026
+    version: 1.0.0
+
+  - name: tiktok-streak
+    description: A reverse-engineered TikTok API tool for managing TikTok streaks.
+    github: swap/tiktok-streak
+    date: 2026
+    version: 1.0.0
+
+  - name: media
+    description: A free open-source media downloader for X, TikTok, Instagram, and YouTube Shorts — no API keys, no browser.
+    github: swap/media
+    date: 2026
+    version: 1.0.0
+
+  - name: novel
+    description: A private novel scraper API built for a client.
+    date: 2026
+    version: 1.0.0
+
+  - name: altaylar-cam
+    description: Client site for Altaylar Cam — facade glass processing in Diyarbakır. Cutting, tempering, laminating, and insulating units across Jumbo CNC lines, with CE / EN 12150 / EN 1279 certified output.
+    url: https://altaylarcam.com.tr
+    date: 2026
+    version: 1.0.0
+
+contributions:
+  - name: lore-rs
+    description: Rust SDK for Lore 0.10.1. Loads the C library and covers local repos, status, stage, commit, history, diff, and branches.
+    github: swap/lore-rs
+    date: 2026
+    version: 0.1.0
+
+  - name: webring
+    description: API for the snowcats webring. A site joins with snowcats.json, then you can step next, back, or land on someone random.
+    url: https://snowcats.org
+    github: snowcats/webring
+    date: 2026
+
+  - name: qord
+    description: Native Discord client in C++ and QML. The window is Qt, not a browser.
+    github: snowcats/qord
+    date: 2026
+    with:
+      - name: xi
+        github: meritions
+
+older:
+  - name: boostshop
+    description: Discord boost shop. Next.js for the store, FastAPI and a bot for orders and restock.
+    github: snowcats/boostshop
+    date: 2026
+
+  - name: x_os
+    description: Remake of X_o!s, picked up again after five years.
+    github: snowcats/x_os
+    date: 2026
+
+  - name: botw-map
+    description: Offline desktop map for Breath of the Wild. Shrines, koroks, towers, quests, hunt routes, and progress kept on your machine.
+    github: swap/botw-map
+    date: 2026
+    version: 0.1.1

@@ -1,0 +1,66 @@
+hero:
+  tag: commissions
+  title: let's make something
+  subtitle: making anything i dont oppose off.
+  cta:
+    label: get in touch
+    href: /contact
+
+build: |
+    I build anything aslong as it doesnt invovle around porn, drugs, minors, scamming, trafficking, escorts. Altough i will if it falls under a general purpose reverse engineer a app or website. I will build with many technologies and languages, depending on the project and the complexity of the project. and languages some are seen at [my skills](/skills) we will discuss what you need and what i will use right after you contact me.
+
+skills:
+  - name: TypeScript
+    icon: ts
+    link: https://www.typescriptlang.org/
+  - name: Next.js
+    icon: nextjs
+    link: https://nextjs.org/
+  - name: React
+    icon: react
+    link: https://reactjs.org/
+  - name: Astro
+    icon: astro
+    link: https://astro.build/
+  - name: Bun
+    icon: bun
+    link: https://bun.sh/
+  - name: Go
+    icon: go
+    link: https://go.dev/
+  - name: Python
+    icon: python
+    link: https://www.python.org/
+  - name: PostgreSQL
+    icon: postgres
+    link: https://www.postgresql.org/
+  - name: Redis
+    icon: redis
+    link: https://redis.io/
+  - name: Docker
+    icon: docker
+    link: https://www.docker.com/
+
+work:
+  more: /projects
+  name: dolls
+  description: The prettiest platform for anyone to put their links, info, or anything about themselves on the prettiest pages.
+  url: https://dol.ls
+  github: dollsbio
+
+process: |
+  i'll get back to you within 24 hours with a quote and timeline and further question. After that we'll discuss the details and i'll get to work once both you and me agree.
+
+rates: |
+  I charge a minimum of 100, but it will go up depending on the complexity of the project and time required.
+
+get: |
+  You will get the full source or disclosed file depending on what we agreed on, everything will be fully on a private github repository with full acces to you, there will be a proper timeline, readme, and commit history with readable commit messages, i will alos further assist depending on what we agreed on, if there are further changes we will discuss a new quote.
+
+faq:
+  - q: How will i pay?
+    a: I accept both crypto and fiat, you will either pay 70% upfront and 30% after the project is complete, or 100% upfront, incases of a lack of trust you are allowed to use a `middleman` of my choise.
+  - q: What is the rate?
+    a: I charge a minimum of 100, but it will go up depending on the complexity of the project and time required.
+  - q: Will you use `ai`
+    a: I generally dont use `ai` for coding, but dpeending on the project and the complexity of the project, i may use it to fasten the procces but i promise you that most of the code is still written by me and all ai related code will be cleaned up and chcecked.

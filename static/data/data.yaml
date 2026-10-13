@@ -1,0 +1,38 @@
+basic-info:
+  name: tess
+  greeting: hey there
+  description: I'm **yasir** also known by most as tess, am a 18yo reverse Engineer & full-stack developer, currently studying BSc (hons) in Computer Science with Artificial Intelligence and part of [snowcats.org](https://snowcats.org).
+  telegram: ilycaera
+  discord: "546358294218801156"
+  github: swap
+  dolls: tess
+  email: tess@snowcats.org
+  avatar: avatar.jpg
+  timezone: Europe/Amsterdam
+
+sections:
+  - label: about me
+    description: I'm 18 years old, born and raised in the Netherlands. I love coding, reverse engineering, playing story-driven Nintendo games like Zelda, Pokémon, and Mario, and my goal is to become someone others can rely on while creating something useful for everyone.
+    games:
+      - name: "The legend of zelda: breath of the wild"
+        cover: zelda.png
+        tags: [Adventure, Action]
+      - name: "The legend of zelda: ocarina of time"
+        cover: oot.png
+        tags: [Adventure, Action]
+      - name: Pokemon sheild
+        cover: pokemon.png
+        tags: [Adventure, RPG]
+  - label: inspiration
+    description: I take inspiration from people who stand out and prove others wrong, such as Dennis Ritchie, who inspired my passion for coding, while my goal in life is to follow the example of Prophet Muhammad PBUH, live by the teachings of Allah, and become a better person.
+commissions:
+  enabled: true
+
+sponsor:
+  enabled: true
+  name: Surfshark
+  icon: surfshark
+  description: Surfshark is a VPN service that provides a secure and private internet connection.
+  colors:
+    - "#1EBFBF"
+    - "#00FFFF"

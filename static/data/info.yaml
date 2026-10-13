@@ -1,0 +1,201 @@
+hardware:
+  pc:
+    name: Custom built pc
+    info: Intel i9-14900k, 4070ti super, 128gb ddr5
+    link: https://pcpartpicker.com/list/r3tZzv
+  monitor:
+    name: Alienware AW3423DWF
+    info: 34-inch, 165hz, qd-oled
+    link: https://a.co/d/00YwaoxI
+  mouse:
+    name: Razer Viper Ultimate
+    info: 78g, 70h battery, 20k dpi
+    link: https://a.co/d/0bSgytxt
+  keyboard:
+    name: Apex pro tkl 2023
+    info: 2.4GHz wireless, 0.1ms input, rapid trigger
+    link: https://a.co/d/0ihQUJkX
+  headphone:
+    name: Sony WH-1000XM5
+    info: Wireless, noise cancellation, 30h battery
+    link: https://a.co/d/02atipc5
+
+software:
+  os:
+    - name: Linux
+      distro: EndeavourOS
+      info: Primary
+      icon: endeavour
+      link: https://endeavouros.com/
+    - name: Windows
+      distro: Windows 11
+      info: Secondary · gaming & school
+      icon: windows
+      link: https://www.microsoft.com/windows
+
+  editors:
+    - name: Neovim
+      info: Vim-fork, minimalistic, fast
+      icon: neovim
+      link: https://neovim.io/
+    - name: VS Code
+      info: IDE, code editing. Redefined
+      icon: vscode
+      link: https://code.visualstudio.com/
+    - name: Visual studio
+      info: IDE, C/C++/C# development
+      icon: vs
+      link: https://code.visualstudio.com/
+
+  browser:
+    - name: zen
+      info: Primary browser, privacy focused
+      icon: zen
+      link: https://zen-browser.app/
+    - name: Chrome
+      info: Secondary browser, google services
+      icon: chrome
+      link: https://www.google.com/chrome/
+
+  terminal:
+    - name: Kitty
+      icon: kitty
+      link: https://sw.kovidgoyal.net/kitty/
+    - name: Alacritty
+      icon: alacritty
+      link: https://alacritty.org/
+
+  daily apps:
+    - name: Spotify
+      icon: spotify
+      link: https://www.spotify.com/
+    - name: Discord
+      icon: discord
+      link: https://discord.com/
+    - name: Telegram
+      icon: telegram
+      link: https://telegram.org/
+    - name: Neovim
+      icon: neovim
+      link: https://neovim.io/
+    - name: Visual studio 
+      icon: vs
+      link: https://code.visualstudio.com/
+
+  tools:
+    - name: ripgrep
+      icon: ripgrep
+      link: https://github.com/burntsushi/ripgrep
+    - name: Termius
+      icon: termius
+      link: https://www.termius.com/
+    - name: DBeaver
+      icon: dbeaver
+      link: https://dbeaver.io/
+    - name: curl
+      icon: curl
+      link: https://curl.se/
+    - name: jq
+      icon: jq
+      link: https://stedolan.github.io/jq/
+    - name: ollama
+      icon: ollama
+      link: https://ollama.ai/
+    - name: Surfshark vpn
+      icon: surfshark
+      link: https://surfshark.com/
+
+skills:
+  languages:
+    - name: Python
+      icon: python
+      link: https://www.python.org/
+    - name: TypeScript
+      icon: ts
+      link: https://www.typescriptlang.org/
+    - name: JavaScript
+      icon: js
+      link: https://www.javascript.com/
+    - name: Java
+      icon: java
+      link: https://www.java.com/
+    - name: Go
+      icon: go
+      link: https://go.dev/
+    - name: Ruby
+      icon: ruby
+      link: https://www.ruby-lang.org/
+    - name: Rust
+      icon: rust
+      link: https://www.rust-lang.org/
+    - name: C
+      icon: c
+      link: https://www.cprogramming.com/
+    - name: SQL
+      icon: sql
+      link: https://www.sql.com/
+
+  frameworks & libraries:
+    - name: next.js
+      icon: nextjs
+      link: https://nextjs.org/
+    - name: react
+      icon: react 
+      link: https://reactjs.org/
+    - name: astro
+      icon: astro
+      link: https://astro.build/
+    - name: vue.js
+      icon: vue
+      link: https://vuejs.org/
+    - name: wails
+      icon: wails
+      link: https://wails.io/
+    - name: gin-gonic
+      icon: gin
+      link: https://gin-gonic.com/
+    - name: ruby-on-rails
+      icon: rails
+      link: https://rubyonrails.org/
+    - name: pytorch
+      icon: pytorch
+      link: https://pytorch.org/
+    - name: tensorflow
+      icon: tensorflow
+      link: https://www.tensorflow.org/
+
+      
+  tools:
+    - name: Git
+      icon: git
+      link: https://git-scm.com/
+    - name: Bun
+      icon: bun
+      link: https://bun.sh/
+    - name: Uv
+      icon: uv
+      link: https://docs.astral.sh/uv/
+    - name: Postgres
+      icon: postgres
+      link: https://www.postgresql.org/
+    - name: Redis
+      icon: redis
+      link: https://redis.io/
+    - name: Docker
+      icon: docker
+      link: https://www.docker.com/
+    - name: Dokploy
+      icon: dokploy
+      link: https://dokploy.com/
+    - name: Traefik
+      icon: traefik
+      link: https://www.Traefik.io/
+    - name: Ansible
+      icon: ansible
+      link: https://www.ansible.com/
+    - name: Valgrind
+      icon: valgrind
+      link: https://valgrind.org/
+    - name: V
+      icon: v
+      link: https://v.tessw.com/

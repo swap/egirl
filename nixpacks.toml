@@ -1,0 +1,20 @@
+providers = ["bun"]
+
+[variables]
+HOST = "0.0.0.0"
+PORT = "2000"
+
+[phases.setup]
+nixPkgs = ["bun"]
+
+[phases.install]
+cmds = ["bun install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["bun run build"]
+
+[caches]
+paths = ["node_modules", ".bun/install/cache"]
+
+[start]
+cmd = "bun start"
