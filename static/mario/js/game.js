@@ -101,8 +101,17 @@ function update(dt) {
 function handleInput(dt) {
   if (player.piping || player.dying || player.noInput || window.marioDead) return;
 
-  player.noRun();
-  player.noCrouch();
+  if (input.isDown('RUN')) {
+    player.run();
+  } else {
+    player.noRun();
+  }
+
+  if (input.isDown('DOWN')) {
+    player.crouch();
+  } else {
+    player.noCrouch();
+  }
 
   if (input.isDown('JUMP')) {
     player.jump();

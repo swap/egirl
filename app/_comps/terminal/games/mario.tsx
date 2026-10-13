@@ -2,82 +2,94 @@ import { useEffect, useRef } from "react";
 import type { Helpers } from "@/app/_comps/lib/commands";
 
 const KEYS: Record<string, string> = {
-  ArrowLeft: "LEFT",
-  ArrowRight: "RIGHT",
+  arrowleft: "LEFT",
   a: "LEFT",
-  A: "LEFT",
+  arrowright: "RIGHT",
   d: "RIGHT",
-  D: "RIGHT",
-  ArrowUp: "JUMP",
+  arrowup: "JUMP",
   w: "JUMP",
-  W: "JUMP",
   " ": "JUMP",
+  k: "JUMP",
+  arrowdown: "DOWN",
+  s: "DOWN",
+  shift: "RUN",
+  j: "RUN",
+};
+
+type Game = Window & {
+  input?: { set: (k: string, s: boolean) => void; reset: () => void };
+  marioDead?: boolean;
 };
 
 function Mario({ done }: Helpers) {
   const frame = useRef<HTMLIFrameElement>(null);
 
   function win() {
-    return frame.current?.contentWindow as
-      | (Window & {
-          input?: { set: (k: string, s: boolean) => void; reset: () => void };
-          marioDead?: boolean;
-        })
-      | null
-      | undefined;
+    return frame.current?.contentWindow as Game | null | undefined;
   }
 
   function restart() {
     const el = frame.current;
     if (!el) return;
-    el.src = "/mario/index.html?v=3";
+    el.src = "/mario/index.html?v=4";
   }
 
   useEffect(() => {
     function on_down(e: KeyboardEvent) {
-      if (e.key === "q" || e.key === "Q") {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+
+      if (k === "q") {
         e.preventDefault();
         done();
         return;
       }
 
-      if (win()?.marioDead) {
+      if (k === "r" || (win()?.marioDead && (KEYS[k] || k === "enter"))) {
         e.preventDefault();
-        restart();
+        if (!e.repeat) restart();
         return;
       }
 
-      const name = KEYS[e.key];
+      const name = KEYS[k];
       if (!name) return;
       e.preventDefault();
       win()?.input?.set(name, true);
     }
 
     function on_up(e: KeyboardEvent) {
-      const name = KEYS[e.key];
+      const name = KEYS[e.key.toLowerCase()];
       if (!name) return;
       e.preventDefault();
       win()?.input?.set(name, false);
     }
 
+    // drop held keys so mario doesn't keep running after alt-tab
+    function on_blur() {
+      win()?.input?.reset();
+    }
+
     window.addEventListener("keydown", on_down);
     window.addEventListener("keyup", on_up);
+    window.addEventListener("blur", on_blur);
     return () => {
       window.removeEventListener("keydown", on_down);
       window.removeEventListener("keyup", on_up);
+      window.removeEventListener("blur", on_blur);
     };
   }, [done]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       <p className="text-[13px] text-[var(--term-muted)]">
-        a/d or arrows · space/w/up jump · any key retry · q quit
+        ←→ move · space/↑ jump · shift run/fire · ↓ crouch/pipe · r restart · q quit
       </p>
       <iframe
         ref={frame}
-        src="/mario/index.html?v=3"
+        src="/mario/index.html?v=4"
         title="mario"
-        className="min-h-0 w-full flex-1 border border-[var(--term-line)] bg-[var(--black)]"
+        tabIndex={-1}
+        className="pointer-events-none min-h-0 w-full flex-1 border border-[var(--term-line)] bg-[var(--black)]"
       />
     </div>
   );

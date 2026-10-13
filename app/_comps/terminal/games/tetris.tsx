@@ -1,64 +1,110 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import type { Helpers } from "@/app/_comps/lib/commands";
 
 const COLS = 10;
 const ROWS = 20;
-const SPEEDS = [800, 650, 500, 370, 250, 160];
-const DELAYS = [50, 60, 70, 80, 90, 100];
-const CLEAR_PTS = [100, 300, 700, 1500];
-const EACH = 20;
+const HIDDEN = 2;
+const HEIGHT = ROWS + HIDDEN;
+const MAX_LEVEL = 20;
+const START_LEVELS = 15;
+const GARBAGE = 10;
+const PER_LEVEL = 10;
+const DAS = 160;
+const ARR = 40;
+const SOFT = 30;
+const LOCK = 500;
+const RESETS = 15;
+const CLEAR_MS = 220;
+const PREVIEW = 4;
+const LABEL_MS = 1400;
 const STORE = "egirl-tetris-max";
-const MAX_PTS = 999999;
+// cells are drawn with css, not block glyphs: the web font has no box-drawing
+// characters and the system fallback differs in width per os
+const SIZE = "1.1em";
+const MINI = "0.8em";
+const MAX_PTS = 9_999_999;
 
-type Kind = "I" | "L" | "J" | "Z" | "S" | "O" | "T";
+type Kind = "I" | "J" | "L" | "O" | "S" | "T" | "Z";
+type Phase = "menu" | "play" | "clear" | "over";
 
+const KINDS: Kind[] = ["I", "J", "L", "O", "S", "T", "Z"];
+
+// SRS spawn orientations; rotating the whole box keeps pieces on the SRS grid
 const SHAPES: Record<Kind, number[][]> = {
-  I: [[1, 1, 1, 1]],
-  L: [
-    [0, 0, 1],
-    [1, 1, 1],
+  I: [
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
   ],
   J: [
     [1, 0, 0],
     [1, 1, 1],
+    [0, 0, 0],
   ],
-  Z: [
-    [1, 1, 0],
-    [0, 1, 1],
-  ],
-  S: [
-    [0, 1, 1],
-    [1, 1, 0],
+  L: [
+    [0, 0, 1],
+    [1, 1, 1],
+    [0, 0, 0],
   ],
   O: [
     [1, 1],
     [1, 1],
   ],
+  S: [
+    [0, 1, 1],
+    [1, 1, 0],
+    [0, 0, 0],
+  ],
   T: [
     [0, 1, 0],
     [1, 1, 1],
+    [0, 0, 0],
+  ],
+  Z: [
+    [1, 1, 0],
+    [0, 1, 1],
+    [0, 0, 0],
   ],
 };
 
-const ORIGIN: Record<Kind, number[][]> = {
-  I: [
-    [-1, 1],
-    [1, -1],
-  ],
-  L: [[0, 0]],
-  J: [[0, 0]],
-  Z: [[0, 0]],
-  S: [[0, 0]],
-  O: [[0, 0]],
-  T: [
-    [0, 0],
-    [1, 0],
-    [-1, 1],
-    [0, -1],
-  ],
+const COLORS: Record<Kind, string> = {
+  I: "#7dd3fc",
+  J: "#93a5fd",
+  L: "#fdba74",
+  O: "#fde68a",
+  S: "#86efac",
+  T: "#d8b4fe",
+  Z: "#fca5a5",
 };
 
-const KINDS = Object.keys(SHAPES) as Kind[];
+// SRS wall kicks as [x, y] with y pointing up, keyed by "from>to"
+const KICKS: Record<string, [number, number][]> = {
+  "0>1": [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+  "1>0": [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+  "1>2": [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+  "2>1": [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+  "2>3": [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+  "3>2": [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+  "3>0": [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+  "0>3": [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+};
+
+const KICKS_I: Record<string, [number, number][]> = {
+  "0>1": [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+  "1>0": [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+  "1>2": [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+  "2>1": [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+  "2>3": [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+  "3>2": [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+  "3>0": [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+  "0>3": [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+};
+
+const LINE_PTS = [0, 100, 300, 500, 800];
+const LINE_NAMES = ["", "single", "double", "triple", "tetris"];
+
+type Cell = Kind | null;
 
 type Piece = {
   kind: Kind;
@@ -68,15 +114,37 @@ type Piece = {
   rot: number;
 };
 
-type Phase = "menu" | "play" | "clear" | "over";
-
-function blank() {
-  return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-}
-
-function clone(b: number[][]) {
-  return b.map((r) => [...r]);
-}
+type Game = {
+  phase: Phase;
+  paused: boolean;
+  board: Cell[][];
+  piece: Piece | null;
+  bag: Kind[];
+  queue: Kind[];
+  hold: Kind | null;
+  held: boolean;
+  score: number;
+  max: number;
+  best: boolean;
+  lines: number;
+  level: number;
+  start_level: number;
+  garbage: number;
+  combo: number;
+  b2b: boolean;
+  label: string;
+  label_t: number;
+  grav_t: number;
+  lock_t: number;
+  resets: number;
+  low: number;
+  clearing: number[];
+  clear_t: number;
+  dir: -1 | 0 | 1;
+  das_t: number;
+  arr_t: number;
+  keys: Record<string, boolean>;
+};
 
 function load_max() {
   try {
@@ -93,663 +161,723 @@ function save_max(n: number) {
   } catch {}
 }
 
-function rand(): Kind {
-  return KINDS[Math.floor(Math.random() * KINDS.length)];
+function blank(): Cell[][] {
+  return Array.from({ length: HEIGHT }, () => Array<Cell>(COLS).fill(null));
 }
 
-function spawn(kind: Kind): Piece {
-  const shape = SHAPES[kind].map((r) => [...r]);
-  const y = kind === "I" ? 0 : -1;
-  const x = kind === "I" ? 3 : 4;
-  return { kind, shape, x, y, rot: 0 };
+function shuffle(): Kind[] {
+  const bag = [...KINDS];
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  return bag;
 }
 
-function rotate(shape: number[][]) {
-  const h = shape.length;
-  const w = shape[0].length;
-  const out = Array.from({ length: w }, () => Array(h).fill(0));
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      out[x][h - 1 - y] = shape[y][x];
+function rotate(shape: number[][], cw: boolean) {
+  const n = shape.length;
+  const out = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      if (cw) out[x][n - 1 - y] = shape[y][x];
+      else out[n - 1 - x][y] = shape[y][x];
     }
   }
   return out;
 }
 
-function want(b: number[][], p: Piece, ox = 0, oy = 0, shape?: number[][]) {
-  const s = shape || p.shape;
-  for (let y = 0; y < s.length; y++) {
-    for (let x = 0; x < s[y].length; x++) {
-      if (!s[y][x]) continue;
-      const nx = p.x + x + ox;
-      const ny = p.y + y + oy;
-      if (nx < 0 || nx >= COLS || ny >= ROWS) return false;
+function spawn(kind: Kind): Piece {
+  const shape = SHAPES[kind].map((r) => [...r]);
+  const x = kind === "O" ? 4 : 3;
+  const y = kind === "I" ? HIDDEN - 2 : HIDDEN - 1;
+  return { kind, shape, x, y, rot: 0 };
+}
+
+function fits(b: Cell[][], p: Piece, dx = 0, dy = 0, shape = p.shape) {
+  for (let y = 0; y < shape.length; y++) {
+    for (let x = 0; x < shape[y].length; x++) {
+      if (!shape[y][x]) continue;
+      const nx = p.x + x + dx;
+      const ny = p.y + y + dy;
+      if (nx < 0 || nx >= COLS || ny >= HEIGHT) return false;
       if (ny >= 0 && b[ny][nx]) return false;
     }
   }
   return true;
 }
 
-function merge(b: number[][], p: Piece) {
-  const next = clone(b);
-  for (let y = 0; y < p.shape.length; y++) {
-    for (let x = 0; x < p.shape[y].length; x++) {
-      if (!p.shape[y][x]) continue;
-      const ny = p.y + y;
-      const nx = p.x + x;
-      if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) next[ny][nx] = 1;
-    }
-  }
-  return next;
+function drop_y(b: Cell[][], p: Piece) {
+  let y = 0;
+  while (fits(b, p, 0, y + 1)) y++;
+  return p.y + y;
 }
 
-function full_rows(b: number[][]) {
-  const lines: number[] = [];
-  for (let y = 0; y < ROWS; y++) {
-    if (b[y].every((c) => c)) lines.push(y);
-  }
-  return lines;
-}
-
-function clear_rows(b: number[][], lines: number[]) {
-  const next = clone(b);
-  for (const y of [...lines].sort((a, c) => c - a)) {
-    next.splice(y, 1);
-    next.unshift(Array(COLS).fill(0));
-  }
-  return next;
-}
-
-function start_board(n: number) {
+function garbage_board(rows: number) {
   const b = blank();
-  for (let i = 0; i < n; i++) {
-    const y = ROWS - 1 - i;
-    let min = 5;
-    let max = 8;
-    if (i > 2 && i <= 6) {
-      min = 4;
-      max = 9;
-    } else if (i > 6) {
-      min = 3;
-      max = 9;
-    }
-    const count = min + Math.floor(Math.random() * (max - min + 1));
-    const line = Array(count).fill(1);
-    while (line.length < COLS) {
-      line.splice(Math.floor(Math.random() * (line.length + 1)), 0, 0);
-    }
-    b[y] = line;
+  for (let i = 0; i < rows; i++) {
+    const hole = Math.floor(Math.random() * COLS);
+    b[HEIGHT - 1 - i] = Array.from({ length: COLS }, (_, x) =>
+      x === hole || Math.random() < 0.15 ? null : KINDS[Math.floor(Math.random() * KINDS.length)],
+    );
   }
   return b;
 }
 
-function paint_next(kind: Kind) {
-  const grid = [
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
-  ];
-  const off: Record<Kind, [number, number]> = {
-    I: [1, 0],
-    L: [0, 0],
-    J: [0, 0],
-    Z: [0, 0],
-    S: [0, 0],
-    O: [0, 1],
-    T: [0, 0],
-  };
-  const [oy, ox] = off[kind];
-  const shape = SHAPES[kind];
-  for (let y = 0; y < shape.length; y++) {
-    for (let x = 0; x < shape[y].length; x++) {
-      if (shape[y][x]) grid[y + oy][x + ox] = 1;
-    }
-  }
-  return grid;
+function gravity(level: number) {
+  // tetris guideline curve, in ms per row
+  return Math.pow(0.8 - (level - 1) * 0.007, level - 1) * 1000;
 }
 
-function cell(n: number) {
-  if (n === 2) return "▣";
-  if (n === 1) return "■";
-  return "·";
+function fresh(prev?: Game): Game {
+  const bag = shuffle();
+  const queue: Kind[] = [];
+  while (queue.length < PREVIEW + 1) {
+    if (!bag.length) bag.push(...shuffle());
+    queue.push(bag.shift()!);
+  }
+  return {
+    phase: "menu",
+    paused: false,
+    board: blank(),
+    piece: null,
+    bag,
+    queue,
+    hold: null,
+    held: false,
+    score: 0,
+    max: prev?.max ?? load_max(),
+    best: false,
+    lines: 0,
+    level: prev?.start_level ?? 1,
+    start_level: prev?.start_level ?? 1,
+    garbage: prev?.garbage ?? 0,
+    combo: -1,
+    b2b: false,
+    label: "",
+    label_t: 0,
+    grav_t: 0,
+    lock_t: 0,
+    resets: 0,
+    low: 0,
+    clearing: [],
+    clear_t: 0,
+    dir: 0,
+    das_t: 0,
+    arr_t: 0,
+    keys: {},
+  };
 }
 
 function Tetris({ done }: Helpers) {
-  const [phase, set_phase] = useState<Phase>("menu");
-  const [board, set_board] = useState(blank);
-  const [piece, set_piece] = useState<Piece | null>(null);
-  const [next_kind, set_next] = useState<Kind>(rand);
-  const [score, set_score] = useState(0);
-  const [max, set_max] = useState(load_max);
-  const [lines, set_lines] = useState(0);
-  const [speed, set_speed] = useState(1);
-  const [speed0, set_speed0] = useState(1);
-  const [start_n, set_start_n] = useState(0);
-  const [pause, set_pause] = useState(false);
-  const [flash, set_flash] = useState<number[] | null>(null);
-  const [focus, set_focus] = useState(true);
+  const game = useRef<Game>(fresh());
+  const [, render] = useReducer((n: number) => n + 1, 0);
 
-  const board_r = useRef(board);
-  const piece_r = useRef(piece);
-  const phase_r = useRef(phase);
-  const pause_r = useRef(pause);
-  const focus_r = useRef(focus);
-  const speed_r = useRef(speed);
-  const next_r = useRef(next_kind);
-  const score_r = useRef(score);
-  const lines_r = useRef(lines);
-  const speed0_r = useRef(speed0);
-  const start_n_r = useRef(start_n);
-  const max_r = useRef(max);
-  const lock_r = useRef(false);
-  const fall_r = useRef(0);
-  const hold_r = useRef<Record<string, number>>({});
-  const stamp_r = useRef(Date.now());
+  function pull(g: Game) {
+    const kind = g.queue.shift()!;
+    if (!g.bag.length) g.bag = shuffle();
+    g.queue.push(g.bag.shift()!);
+    return kind;
+  }
 
-  board_r.current = board;
-  piece_r.current = piece;
-  phase_r.current = phase;
-  pause_r.current = pause;
-  focus_r.current = focus;
-  speed_r.current = speed;
-  next_r.current = next_kind;
-  score_r.current = score;
-  lines_r.current = lines;
-  speed0_r.current = speed0;
-  start_n_r.current = start_n;
-  max_r.current = max;
+  function enter(g: Game, kind: Kind) {
+    const p = spawn(kind);
+    if (!fits(g.board, p)) {
+      over(g);
+      return;
+    }
+    // guideline: drop one row right away if there's room
+    if (fits(g.board, p, 0, 1)) p.y++;
+    g.piece = p;
+    g.grav_t = 0;
+    g.lock_t = 0;
+    g.resets = 0;
+    g.low = p.y;
+  }
 
-  function bump(pts: number) {
-    const n = Math.min(MAX_PTS, score_r.current + pts);
-    score_r.current = n;
-    set_score(n);
-    if (n > max_r.current) {
-      max_r.current = n;
-      set_max(n);
-      save_max(n);
+  function over(g: Game) {
+    g.phase = "over";
+    g.piece = null;
+    if (g.score > g.max) {
+      g.max = g.score;
+      g.best = true;
+      save_max(g.score);
     }
   }
 
-  function stop_fall() {
-    if (fall_r.current) {
-      window.clearTimeout(fall_r.current);
-      fall_r.current = 0;
-    }
+  function add(g: Game, pts: number) {
+    g.score = Math.min(MAX_PTS, g.score + pts);
   }
 
-  function clear_holds() {
-    for (const k of Object.keys(hold_r.current)) {
-      window.clearTimeout(hold_r.current[k]);
-      delete hold_r.current[k];
-    }
+  function say(g: Game, text: string) {
+    g.label = text;
+    g.label_t = LABEL_MS;
   }
 
   function begin() {
-    stop_fall();
-    lock_r.current = false;
-    pause_r.current = false;
-    set_pause(false);
-    set_flash(null);
-    set_score(0);
-    score_r.current = 0;
-    set_lines(0);
-    lines_r.current = 0;
-    const spd = speed0_r.current;
-    set_speed(spd);
-    speed_r.current = spd;
-    const b = start_board(start_n_r.current);
-    const first = spawn(next_r.current);
-    const nxt = rand();
-    board_r.current = b;
-    piece_r.current = first;
-    next_r.current = nxt;
-    phase_r.current = "play";
-    set_board(b);
-    set_piece(first);
-    set_next(nxt);
-    set_phase("play");
-    stamp_r.current = Date.now();
-    auto();
+    const g = fresh(game.current);
+    g.phase = "play";
+    g.board = garbage_board(g.garbage);
+    game.current = g;
+    enter(g, pull(g));
   }
 
-  function auto(remain?: number) {
-    stop_fall();
-    if (phase_r.current !== "play" || pause_r.current || !focus_r.current) return;
-    const wait =
-      remain !== undefined
-        ? Math.max(0, remain)
-        : SPEEDS[speed_r.current - 1];
-    fall_r.current = window.setTimeout(() => tick(), wait);
+  function grounded(g: Game) {
+    return !!g.piece && !fits(g.board, g.piece, 0, 1);
   }
 
-  function tick() {
-    if (lock_r.current || phase_r.current !== "play") return;
-    if (pause_r.current || !focus_r.current) return;
-    const p = piece_r.current;
-    const b = board_r.current;
-    if (!p) return;
-    if (want(b, p, 0, 1)) {
-      const next = { ...p, y: p.y + 1 };
-      piece_r.current = next;
-      set_piece(next);
-      stamp_r.current = Date.now();
-      auto();
-    } else {
-      lock(p, b);
+  // moving or rotating on the floor buys more time, up to RESETS times
+  function nudge(g: Game) {
+    if (!g.piece) return;
+    if (g.piece.y > g.low) {
+      g.low = g.piece.y;
+      g.resets = 0;
+    }
+    if (grounded(g) && g.resets < RESETS) {
+      g.lock_t = 0;
+      g.resets++;
     }
   }
 
-  function lock(p: Piece, b: number[][]) {
-    lock_r.current = true;
-    stop_fall();
-    const merged = merge(b, p);
-    bump(10 + (speed_r.current - 1) * 2);
-    const clears = full_rows(merged);
-    board_r.current = merged;
-    piece_r.current = null;
-    set_board(merged);
-    set_piece(null);
-
-    if (clears.length) {
-      phase_r.current = "clear";
-      set_phase("clear");
-      flash_clear(merged, clears);
-      return;
-    }
-
-    if (merged[0].some((c) => c)) {
-      phase_r.current = "over";
-      set_phase("over");
-      over_anim(merged);
-      return;
-    }
-
-    window.setTimeout(() => {
-      lock_r.current = false;
-      const nxt = rand();
-      const cur = spawn(next_r.current);
-      next_r.current = nxt;
-      piece_r.current = cur;
-      phase_r.current = "play";
-      set_next(nxt);
-      set_piece(cur);
-      set_phase("play");
-      stamp_r.current = Date.now();
-      auto();
-    }, 100);
+  function shift(g: Game, dx: number) {
+    const p = g.piece;
+    if (!p || !fits(g.board, p, dx, 0)) return false;
+    p.x += dx;
+    nudge(g);
+    return true;
   }
 
-  function flash_clear(b: number[][], clears: number[]) {
-    let step = 0;
-    const run = () => {
-      set_flash(step % 2 === 0 ? clears : null);
-      const painted = clone(b);
-      if (step % 2 === 0) {
-        for (const y of clears) painted[y] = Array(COLS).fill(2);
-      }
-      board_r.current = painted;
-      set_board(painted);
-      step++;
-      if (step < 6) {
-        window.setTimeout(run, 100);
+  function turn(g: Game, cw: boolean) {
+    const p = g.piece;
+    if (!p || p.kind === "O") return;
+    const to = (p.rot + (cw ? 1 : 3)) % 4;
+    const shape = rotate(p.shape, cw);
+    const table = p.kind === "I" ? KICKS_I : KICKS;
+    for (const [kx, ky] of table[`${p.rot}>${to}`]) {
+      if (fits(g.board, p, kx, -ky, shape)) {
+        p.shape = shape;
+        p.x += kx;
+        p.y -= ky;
+        p.rot = to;
+        nudge(g);
         return;
       }
-      const next = clear_rows(b, clears);
-      const total = lines_r.current + clears.length;
-      lines_r.current = total;
-      set_lines(total);
-      bump(CLEAR_PTS[clears.length - 1]);
-      const add = Math.floor(total / EACH);
-      const spd = Math.min(6, speed0_r.current + add);
-      speed_r.current = spd;
-      set_speed(spd);
-      set_flash(null);
-      board_r.current = next;
-      set_board(next);
-      lock_r.current = false;
-      const nxt = rand();
-      const cur = spawn(next_r.current);
-      next_r.current = nxt;
-      piece_r.current = cur;
-      phase_r.current = "play";
-      set_next(nxt);
-      set_piece(cur);
-      set_phase("play");
-      stamp_r.current = Date.now();
-      auto();
-    };
-    run();
+    }
   }
 
-  function over_anim(start: number[][]) {
-    stop_fall();
-    let filled = clone(start);
-    let i = 0;
-    const step = () => {
-      if (i <= 19) {
-        filled[ROWS - 1 - i] = Array(COLS).fill(1);
-        board_r.current = filled;
-        set_board(clone(filled));
-      } else if (i <= 39) {
-        filled[i - 20] = Array(COLS).fill(0);
-        board_r.current = filled;
-        set_board(clone(filled));
-      } else {
-        const empty = blank();
-        board_r.current = empty;
-        piece_r.current = null;
-        phase_r.current = "menu";
-        set_board(empty);
-        set_piece(null);
-        set_phase("menu");
-        lock_r.current = false;
-        return;
+  function fall(g: Game, soft: boolean) {
+    const p = g.piece;
+    if (!p || !fits(g.board, p, 0, 1)) return false;
+    p.y++;
+    if (soft) add(g, 1);
+    nudge(g);
+    return true;
+  }
+
+  function slam(g: Game) {
+    const p = g.piece;
+    if (!p) return;
+    const y = drop_y(g.board, p);
+    add(g, (y - p.y) * 2);
+    p.y = y;
+    lock(g);
+  }
+
+  function swap(g: Game) {
+    if (!g.piece || g.held) return;
+    const cur = g.piece.kind;
+    const next = g.hold ?? pull(g);
+    g.hold = cur;
+    g.held = true;
+    enter(g, next);
+  }
+
+  function tspin(g: Game, p: Piece) {
+    if (p.kind !== "T") return false;
+    const corners = [
+      [0, 0],
+      [2, 0],
+      [0, 2],
+      [2, 2],
+    ].filter(([cx, cy]) => {
+      const x = p.x + cx;
+      const y = p.y + cy;
+      return x < 0 || x >= COLS || y >= HEIGHT || (y >= 0 && !!g.board[y][x]);
+    });
+    return corners.length >= 3;
+  }
+
+  function lock(g: Game) {
+    const p = g.piece;
+    if (!p) return;
+    const spun = tspin(g, p);
+    let above = true;
+    for (let y = 0; y < p.shape.length; y++) {
+      for (let x = 0; x < p.shape[y].length; x++) {
+        if (!p.shape[y][x]) continue;
+        const ny = p.y + y;
+        if (ny >= 0 && ny < HEIGHT) g.board[ny][p.x + x] = p.kind;
+        if (ny >= HIDDEN) above = false;
       }
-      i++;
-      window.setTimeout(step, 40);
-    };
-    step();
-  }
+    }
+    g.piece = null;
+    g.held = false;
 
-  function move(dx: number) {
-    if (lock_r.current || phase_r.current !== "play") return;
-    if (pause_r.current) {
-      pause_r.current = false;
-      set_pause(false);
-      auto();
+    if (above) {
+      over(g);
       return;
     }
-    const p = piece_r.current;
-    const b = board_r.current;
-    if (!p) return;
-    const delay = DELAYS[speed_r.current - 1];
-    if (want(b, p, dx, 0)) {
-      const next = { ...p, x: p.x + dx };
-      piece_r.current = next;
-      set_piece(next);
-      stamp_r.current += delay;
-    } else {
-      stamp_r.current += Math.floor(delay / 1.5);
-    }
-    const remain = SPEEDS[speed_r.current - 1] - (Date.now() - stamp_r.current);
-    auto(remain);
-  }
 
-  function soft() {
-    if (lock_r.current || phase_r.current !== "play") return;
-    if (pause_r.current) {
-      pause_r.current = false;
-      set_pause(false);
-      auto();
+    const full: number[] = [];
+    for (let y = 0; y < HEIGHT; y++) {
+      if (g.board[y].every(Boolean)) full.push(y);
+    }
+
+    const n = full.length;
+    if (n) {
+      const hard = n === 4 || spun;
+      let pts = (spun ? [400, 800, 1200, 1600][n] : LINE_PTS[n]) * g.level;
+      if (hard && g.b2b) pts = Math.floor(pts * 1.5);
+      g.combo++;
+      if (g.combo > 0) pts += 50 * g.combo * g.level;
+      add(g, pts);
+
+      const parts = [
+        g.b2b && hard ? "b2b" : "",
+        spun ? `t-spin ${LINE_NAMES[n]}` : LINE_NAMES[n],
+        g.combo > 0 ? `combo ×${g.combo}` : "",
+      ].filter(Boolean);
+      say(g, parts.join(" · "));
+      g.b2b = hard;
+
+      g.clearing = full;
+      g.clear_t = CLEAR_MS;
+      g.phase = "clear";
       return;
     }
-    const p = piece_r.current;
-    const b = board_r.current;
-    if (!p) return;
-    if (want(b, p, 0, 1)) {
-      const next = { ...p, y: p.y + 1 };
-      piece_r.current = next;
-      set_piece(next);
-      stamp_r.current = Date.now();
-      auto();
-    } else {
-      lock(p, b);
+
+    g.combo = -1;
+    if (spun) {
+      add(g, 400 * g.level);
+      say(g, "t-spin");
     }
+    enter(g, pull(g));
   }
 
-  function hard() {
-    if (lock_r.current || phase_r.current !== "play") return;
-    if (pause_r.current) {
-      pause_r.current = false;
-      set_pause(false);
-      auto();
-      return;
+  function finish_clear(g: Game) {
+    const keep = g.board.filter((_, y) => !g.clearing.includes(y));
+    while (keep.length < HEIGHT) keep.unshift(Array<Cell>(COLS).fill(null));
+    g.board = keep;
+    g.lines += g.clearing.length;
+    const lvl = Math.min(MAX_LEVEL, g.start_level + Math.floor(g.lines / PER_LEVEL));
+    if (lvl > g.level) say(g, `level ${lvl}`);
+    g.level = lvl;
+    g.clearing = [];
+    g.phase = "play";
+    if (g.board.every((row) => row.every((c) => !c))) {
+      add(g, 2000 * g.level);
+      say(g, "perfect clear");
     }
-    const p = piece_r.current;
-    const b = board_r.current;
-    if (!p) return;
-    let y = p.y;
-    while (want(b, { ...p, y: y + 1 })) y++;
-    const dropped = { ...p, y };
-    piece_r.current = dropped;
-    lock(dropped, b);
+    enter(g, pull(g));
   }
 
-  function turn() {
-    if (lock_r.current || phase_r.current !== "play") return;
-    if (pause_r.current) {
-      pause_r.current = false;
-      set_pause(false);
-      auto();
-      return;
-    }
-    const p = piece_r.current;
-    const b = board_r.current;
-    if (!p) return;
-    const shape = rotate(p.shape);
-    const origin = ORIGIN[p.kind][p.rot] || [0, 0];
-    const next: Piece = {
-      ...p,
-      shape,
-      x: p.x + origin[1],
-      y: p.y + origin[0],
-      rot: (p.rot + 1) % ORIGIN[p.kind].length,
-    };
-    if (want(b, next)) {
-      piece_r.current = next;
-      set_piece(next);
-    }
-  }
-
-  function hold(
-    key: string,
-    fn: () => void,
-    opts: { once?: boolean; begin?: number; interval?: number },
-  ) {
-    if (hold_r.current[key]) {
-      window.clearTimeout(hold_r.current[key]);
-      delete hold_r.current[key];
-    }
-    fn();
-    if (opts.once) return;
-    let begin = opts.begin ?? 100;
-    const interval = opts.interval ?? 50;
-    const loop = () => {
-      hold_r.current[key] = window.setTimeout(() => {
-        begin = 0;
-        fn();
-        loop();
-      }, begin || interval);
-    };
-    loop();
-  }
-
-  function release(key: string) {
-    if (hold_r.current[key]) {
-      window.clearTimeout(hold_r.current[key]);
-      delete hold_r.current[key];
-    }
+  function pause(g: Game, on: boolean) {
+    if (g.phase !== "play" && g.phase !== "clear") return;
+    g.paused = on;
+    g.keys = {};
+    g.dir = 0;
   }
 
   useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+
+    function frame(now: number) {
+      const dt = Math.min(100, now - last);
+      last = now;
+      const g = game.current;
+      let dirty = false;
+
+      if (g.label_t > 0) {
+        g.label_t -= dt;
+        if (g.label_t <= 0) {
+          g.label = "";
+          dirty = true;
+        }
+      }
+
+      if (!g.paused && g.phase === "clear") {
+        g.clear_t -= dt;
+        if (g.clear_t <= 0) finish_clear(g);
+        dirty = true;
+      } else if (!g.paused && g.phase === "play" && g.piece) {
+        if (g.dir) {
+          g.das_t += dt;
+          if (g.das_t >= DAS) {
+            g.arr_t += dt;
+            while (g.arr_t >= ARR) {
+              g.arr_t -= ARR;
+              if (!shift(g, g.dir)) {
+                g.arr_t = 0;
+                break;
+              }
+              dirty = true;
+            }
+          }
+        }
+
+        const soft = !!g.keys.down;
+        const speed = soft ? Math.min(SOFT, gravity(g.level)) : gravity(g.level);
+        g.grav_t += dt;
+        while (g.grav_t >= speed && g.piece) {
+          g.grav_t -= speed;
+          if (!fall(g, soft)) {
+            g.grav_t = 0;
+            break;
+          }
+          dirty = true;
+        }
+
+        if (g.piece && grounded(g)) {
+          g.lock_t += dt;
+          if (g.lock_t >= LOCK) {
+            lock(g);
+            dirty = true;
+          }
+        } else {
+          g.lock_t = 0;
+        }
+      }
+
+      if (dirty) render();
+      raf = requestAnimationFrame(frame);
+    }
+
     function on_down(e: KeyboardEvent) {
-      if (e.repeat) return;
-      if (e.key === "q" || e.key === "Q") {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const g = game.current;
+
+      if (k === "q") {
         e.preventDefault();
-        stop_fall();
-        clear_holds();
         done();
         return;
       }
 
-      const ph = phase_r.current;
+      if (g.phase === "menu") {
+        const menu: Record<string, () => void> = {
+          arrowleft: () => (g.start_level = g.start_level <= 1 ? START_LEVELS : g.start_level - 1),
+          a: () => (g.start_level = g.start_level <= 1 ? START_LEVELS : g.start_level - 1),
+          arrowright: () => (g.start_level = g.start_level >= START_LEVELS ? 1 : g.start_level + 1),
+          d: () => (g.start_level = g.start_level >= START_LEVELS ? 1 : g.start_level + 1),
+          arrowup: () => (g.garbage = g.garbage >= GARBAGE ? 0 : g.garbage + 1),
+          w: () => (g.garbage = g.garbage >= GARBAGE ? 0 : g.garbage + 1),
+          arrowdown: () => (g.garbage = g.garbage <= 0 ? GARBAGE : g.garbage - 1),
+          s: () => (g.garbage = g.garbage <= 0 ? GARBAGE : g.garbage - 1),
+          " ": begin,
+          enter: begin,
+        };
+        const fn = menu[k];
+        if (!fn) return;
+        e.preventDefault();
+        fn();
+        render();
+        return;
+      }
 
-      if (ph === "menu") {
-        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-          e.preventDefault();
-          hold("left", () => set_speed0((s) => (s <= 1 ? 6 : s - 1)), {
-            begin: 200,
-            interval: 100,
-          });
-        } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-          e.preventDefault();
-          hold("right", () => set_speed0((s) => (s >= 6 ? 1 : s + 1)), {
-            begin: 200,
-            interval: 100,
-          });
-        } else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
-          e.preventDefault();
-          hold("up", () => set_start_n((n) => (n >= 10 ? 0 : n + 1)), {
-            begin: 200,
-            interval: 100,
-          });
-        } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
-          e.preventDefault();
-          hold("down", () => set_start_n((n) => (n <= 0 ? 10 : n - 1)), {
-            begin: 200,
-            interval: 100,
-          });
-        } else if (e.key === " ") {
+      if (g.phase === "over") {
+        if (k === " " || k === "enter" || k === "r") {
           e.preventDefault();
           begin();
+          render();
+        } else if (k === "m") {
+          e.preventDefault();
+          const next = fresh(g);
+          game.current = next;
+          render();
         }
         return;
       }
 
-      if (ph === "clear" || ph === "over") return;
-
-      if (e.key === "p" || e.key === "P") {
+      if (k === "p") {
         e.preventDefault();
-        const next = !pause_r.current;
-        pause_r.current = next;
-        set_pause(next);
-        if (!next) auto();
-        else stop_fall();
+        pause(g, !g.paused);
+        render();
+        return;
+      }
+      if (g.paused) {
+        if (k === " " || k === "enter") {
+          e.preventDefault();
+          pause(g, false);
+          render();
+        }
+        return;
+      }
+      if (e.repeat) {
+        if (["arrowleft", "arrowright", "arrowdown", "a", "d", "s", " "].includes(k)) {
+          e.preventDefault();
+        }
         return;
       }
 
-      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+      const left = k === "arrowleft" || k === "a";
+      const right = k === "arrowright" || k === "d";
+      if (left || right) {
         e.preventDefault();
-        hold("left", () => move(-1), { begin: 200, interval: 100 });
-      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+        const dir = left ? -1 : 1;
+        g.keys[left ? "left" : "right"] = true;
+        g.dir = dir;
+        g.das_t = 0;
+        g.arr_t = 0;
+        if (g.phase === "play") shift(g, dir);
+      } else if (k === "arrowdown" || k === "s") {
         e.preventDefault();
-        hold("right", () => move(1), { begin: 200, interval: 100 });
-      } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+        if (!g.keys.down && g.phase === "play" && fall(g, true)) g.grav_t = 0;
+        g.keys.down = true;
+      } else if (k === "arrowup" || k === "w" || k === "x") {
         e.preventDefault();
-        hold("down", soft, { begin: 40, interval: 40 });
-      } else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+        if (g.phase === "play") turn(g, true);
+      } else if (k === "z") {
         e.preventDefault();
-        hold("rot", turn, { once: true });
-      } else if (e.key === " ") {
+        if (g.phase === "play") turn(g, false);
+      } else if (k === " ") {
         e.preventDefault();
-        hold("drop", hard, { once: true });
+        if (g.phase === "play") slam(g);
+      } else if (k === "c" || k === "shift") {
+        e.preventDefault();
+        if (g.phase === "play") swap(g);
+      } else {
+        return;
       }
+      render();
     }
 
     function on_up(e: KeyboardEvent) {
-      const map: Record<string, string> = {
-        ArrowLeft: "left",
-        a: "left",
-        A: "left",
-        ArrowRight: "right",
-        d: "right",
-        D: "right",
-        ArrowDown: "down",
-        s: "down",
-        S: "down",
-        ArrowUp: "up",
-        w: "up",
-        W: "up",
-        " ": "drop",
-      };
-      const k = map[e.key];
-      if (k) release(k);
-      if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") release("rot");
+      const k = e.key.toLowerCase();
+      const g = game.current;
+      if (k === "arrowdown" || k === "s") g.keys.down = false;
+      const left = k === "arrowleft" || k === "a";
+      const right = k === "arrowright" || k === "d";
+      if (!left && !right) return;
+      g.keys[left ? "left" : "right"] = false;
+      // fall back to the other direction if it's still held
+      const other = left ? "right" : "left";
+      if (g.keys[other]) {
+        g.dir = left ? 1 : -1;
+        g.das_t = 0;
+        g.arr_t = 0;
+      } else {
+        g.dir = 0;
+      }
     }
 
     function on_vis() {
-      const on = document.visibilityState === "visible";
-      set_focus(on);
-      if (!on) stop_fall();
-      else if (phase_r.current === "play" && !pause_r.current) auto();
+      if (document.visibilityState !== "visible") {
+        pause(game.current, true);
+        render();
+      }
     }
 
+    function on_blur() {
+      game.current.keys = {};
+      game.current.dir = 0;
+    }
+
+    raf = requestAnimationFrame(frame);
     window.addEventListener("keydown", on_down);
     window.addEventListener("keyup", on_up);
+    window.addEventListener("blur", on_blur);
     document.addEventListener("visibilitychange", on_vis);
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("keydown", on_down);
       window.removeEventListener("keyup", on_up);
+      window.removeEventListener("blur", on_blur);
       document.removeEventListener("visibilitychange", on_vis);
-      stop_fall();
-      clear_holds();
     };
   }, [done]);
 
-  const view = clone(board);
-  if (piece && phase === "play") {
-    for (let y = 0; y < piece.shape.length; y++) {
-      for (let x = 0; x < piece.shape[y].length; x++) {
-        if (!piece.shape[y][x]) continue;
-        const ny = piece.y + y;
-        const nx = piece.x + x;
-        if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) {
-          view[ny][nx] = view[ny][nx] ? 2 : 1;
-        }
-      }
-    }
-  }
-  if (flash) {
-    for (const y of flash) view[y] = Array(COLS).fill(2);
-  }
+  const g = game.current;
+  return g.phase === "menu" ? <Menu g={g} /> : <Board g={g} />;
+}
 
-  const rows: ReactNode[] = view.map((row, y) => (
-    <div key={y} className="leading-none tracking-wider">
-      {row.map((c) => cell(c)).join("")}
-    </div>
-  ));
+type Look = { kind: Kind | null; ghost?: boolean; dim?: boolean; flash?: boolean };
 
-  const preview = paint_next(next_kind);
-  const next_rows = preview.map((row, y) => (
-    <div key={y} className="leading-none tracking-wider">
-      {row.map((c) => cell(c)).join("")}
-    </div>
-  ));
-
-  if (phase === "menu") {
+function Tile({ kind, ghost, dim, flash }: Look) {
+  if (flash) return <span className="m-px rounded-[2px] bg-[var(--term-bright)]" />;
+  if (!kind) {
     return (
-      <div className="font-mono text-sm">
-        <p className="mb-2 text-[13px] text-[var(--term-muted)]">
-          ←→ speed · ↑↓ start lines · space play · q quit
-        </p>
-        <div className="select-none space-y-1">
-          <div>speed {speed0}/6</div>
-          <div>start {start_n}/10</div>
-          <div>max {max}</div>
-          <div className="mt-2 text-[var(--term-muted)]">next</div>
-          <div>{next_rows}</div>
-        </div>
-      </div>
+      <span className="flex items-center justify-center text-[10px] text-[var(--term-line)]">
+        ·
+      </span>
     );
   }
+  if (ghost) {
+    return (
+      <span
+        className="m-px rounded-[2px] border"
+        style={{ borderColor: COLORS[kind], opacity: 0.45 }}
+      />
+    );
+  }
+  return (
+    <span
+      className="m-px rounded-[2px]"
+      style={{ background: COLORS[kind], opacity: dim ? 0.3 : 1 }}
+    />
+  );
+}
+
+function Mini({ kind, dim = false }: { kind: Kind | null; dim?: boolean }) {
+  const rows = kind ? SHAPES[kind].filter((r) => r.some(Boolean)) : [];
+  const w = kind ? SHAPES[kind][0].length : 0;
+  return (
+    <div className="flex h-[1.7em] w-[3.4em] items-center justify-center">
+      {kind ? (
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${w}, ${MINI})`, gridAutoRows: MINI }}
+        >
+          {rows.flatMap((r, y) =>
+            r.map((c, x) =>
+              c ? (
+                <span
+                  key={`${y}-${x}`}
+                  className="m-px rounded-[1px]"
+                  style={{ background: COLORS[kind], opacity: dim ? 0.3 : 1 }}
+                />
+              ) : (
+                <span key={`${y}-${x}`} />
+              ),
+            ),
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Menu({ g }: { g: Game }) {
+  return (
+    <div className="font-mono text-sm">
+      <p className="mb-2 text-[13px] text-[var(--term-muted)]">
+        ←→ level · ↑↓ garbage · space play · q quit
+      </p>
+      <div className="select-none space-y-3">
+        <pre className="leading-tight text-[var(--term-bright)]">
+          {KINDS.slice(0, 6).map((k, i) => (
+            <span key={k} style={{ color: COLORS[k] }}>
+              {"TETRIS"[i]}
+            </span>
+          ))}
+        </pre>
+        <div className="space-y-1">
+          <div>
+            level <span className="text-[var(--term-bright)]">{g.start_level}</span>
+            <span className="text-[var(--term-muted)]">/{START_LEVELS}</span>
+          </div>
+          <div>
+            garbage <span className="text-[var(--term-bright)]">{g.garbage}</span>
+            <span className="text-[var(--term-muted)]">/{GARBAGE}</span>
+          </div>
+          <div>best {g.max.toLocaleString()}</div>
+        </div>
+        <div className="space-y-0.5 text-[13px] text-[var(--term-muted)]">
+          <div>a/d ←→ move · s ↓ soft drop · space hard drop</div>
+          <div>w ↑ x rotate · z rotate back · c shift hold · p pause</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Board({ g }: { g: Game }) {
+  const over = g.phase === "over";
+  const p = g.piece;
+  const ghost = p && !over ? drop_y(g.board, p) : null;
+
+  const tiles: Look[] = [];
+  for (let y = HIDDEN; y < HEIGHT; y++) {
+    const flash = g.clearing.includes(y);
+    for (let x = 0; x < COLS; x++) {
+      const kind = g.board[y][x];
+      if (flash) {
+        tiles.push({ kind, flash });
+        continue;
+      }
+      if (p && !over) {
+        if (p.shape[y - p.y]?.[x - p.x]) {
+          tiles.push({ kind: p.kind });
+          continue;
+        }
+        if (!kind && ghost !== null && p.shape[y - ghost]?.[x - p.x]) {
+          tiles.push({ kind: p.kind, ghost: true });
+          continue;
+        }
+      }
+      tiles.push({ kind, dim: over });
+    }
+  }
+
+  const note = g.paused
+    ? "paused · p to resume"
+    : over
+      ? `game over · ${g.best ? "new best! · " : ""}space retry · m menu`
+      : "";
 
   return (
     <div className="font-mono text-sm">
       <p className="mb-2 text-[13px] text-[var(--term-muted)]">
-        a/d move · w rot · s soft · space hard · p pause · q quit
-        {pause ? " · paused" : ""}
-        {!focus ? " · blurred" : ""}
+        ←→ move · ↑ rotate · ↓ soft · space drop · c hold · p pause · q quit
       </p>
-      <div className="flex gap-6 select-none">
-        <div>{rows}</div>
+      <div className="flex gap-5 select-none">
         <div className="space-y-1 text-[13px]">
-          <div>score {score}</div>
-          <div>max {max}</div>
-          <div>lines {lines}</div>
-          <div>speed {speed}/6</div>
-          <div className="pt-2 text-[var(--term-muted)]">next</div>
-          <div>{next_rows}</div>
+          <div className="text-[var(--term-muted)]">hold</div>
+          <Mini kind={g.hold} dim={g.held} />
+          <div className="pt-3 text-[var(--term-muted)]">score</div>
+          <div className="text-[var(--term-bright)]">{g.score.toLocaleString()}</div>
+          <div className="pt-1 text-[var(--term-muted)]">best</div>
+          <div>{Math.max(g.max, g.score).toLocaleString()}</div>
+          <div className="pt-1 text-[var(--term-muted)]">level</div>
+          <div>{g.level}</div>
+          <div className="pt-1 text-[var(--term-muted)]">lines</div>
+          <div>{g.lines}</div>
+        </div>
+        <div className="relative self-start">
+          <div
+            className="grid rounded-[3px] border border-[var(--term-line)] p-[2px]"
+            style={{
+              gridTemplateColumns: `repeat(${COLS}, ${SIZE})`,
+              gridAutoRows: SIZE,
+              opacity: g.paused ? 0.25 : 1,
+            }}
+          >
+            {tiles.map((t, i) => (
+              <Tile key={i} {...t} />
+            ))}
+          </div>
+          {g.label ? (
+            <div
+              className="absolute inset-x-0 top-[30%] text-center text-[13px] text-[var(--term-bright)]"
+              style={{ opacity: Math.min(1, g.label_t / 400) }}
+            >
+              <span className="bg-[var(--term-bg)] px-1">{g.label}</span>
+            </div>
+          ) : null}
+        </div>
+        <div className="space-y-2 text-[13px]">
+          <div className="text-[var(--term-muted)]">next</div>
+          {g.queue.slice(0, PREVIEW).map((k, i) => (
+            <div key={i} style={{ opacity: i === 0 ? 1 : 0.55 }}>
+              <Mini kind={k} />
+            </div>
+          ))}
         </div>
       </div>
+      {note ? (
+        <p className={`mt-2 text-[13px] ${over ? "text-[var(--term-bright)]" : "text-[var(--term-muted)]"}`}>
+          {note}
+        </p>
+      ) : null}
     </div>
   );
 }
